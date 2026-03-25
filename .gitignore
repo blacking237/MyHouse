@@ -15,4 +15,6 @@ ios/
 .env.production
 backend/.env.production
 backend/.env
+android/keystore.properties
+android/*.jks
 
