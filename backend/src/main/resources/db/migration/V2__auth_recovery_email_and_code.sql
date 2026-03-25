@@ -1,0 +1,5 @@
+ALTER TABLE users
+  ADD COLUMN IF NOT EXISTS recovery_email VARCHAR(160) NULL,
+  ADD COLUMN IF NOT EXISTS recovery_code_hash VARCHAR(255) NULL,
+  ADD COLUMN IF NOT EXISTS recovery_code_expires_at TIMESTAMP NULL;
+

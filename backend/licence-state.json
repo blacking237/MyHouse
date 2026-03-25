@@ -1,0 +1,8 @@
+{
+  "trialStart" : "2026-03-09",
+  "activated" : true,
+  "clientName" : "Amber City Test",
+  "expiresOn" : "2027-03-09",
+  "nbChambresMax" : 500,
+  "modules" : [ "ACCUEIL", "RESIDENTS", "CHAMBRES", "COMPTEURS", "FACTURES", "FINANCE", "COMMUNICATION", "CONCIERGE", "DEV_PORTAL", "LICENCE" ]
+}

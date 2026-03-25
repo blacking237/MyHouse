@@ -1,0 +1,39 @@
+package com.ambercity.manager.module.resident.dto;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+
+public record ResidentResponse(
+  Long id,
+  String externalId,
+  String cni,
+  String nom,
+  String prenom,
+  String genre,
+  LocalDate dateNaissance,
+  String telephone,
+  String whatsapp,
+  String whatsappParents,
+  String email,
+  String ecole,
+  String filiere,
+  String niveau,
+  String niveauEtude,
+  String filiereEtude,
+  String contactUrgenceNom,
+  String contactUrgenceTelephone,
+  String nomPere,
+  String nomMere,
+  String preferredLanguage,
+  Integer activityScore,
+  Integer paymentsCount,
+  Integer interactionsCount,
+  LocalDateTime lastActiveAt,
+  LocalDate dateEntree,
+  LocalDate dateSortie,
+  String statut,
+  LocalDateTime createdAt,
+  LocalDateTime updatedAt,
+  Long currentRoomId,
+  String currentRoomNumero
+) {}

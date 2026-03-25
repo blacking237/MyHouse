@@ -1,0 +1,3 @@
+ALTER TABLE contracts
+  ALTER COLUMN monthly_rent TYPE NUMERIC(12,2) USING monthly_rent::NUMERIC(12,2),
+  ALTER COLUMN deposit TYPE NUMERIC(12,2) USING deposit::NUMERIC(12,2);

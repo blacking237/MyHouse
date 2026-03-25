@@ -1,0 +1,71 @@
+spring:
+  application:
+    name: ambercity-backend
+  mail:
+    host: ${MAIL_HOST:}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS:true}
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/myhouse}
+    username: ${DB_USERNAME:myhouse}
+    password: ${DB_PASSWORD:myhouse}
+    driver-class-name: ${DB_DRIVER:org.postgresql.Driver}
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+    properties:
+      hibernate:
+        format_sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+
+server:
+  port: ${PORT:8080}
+
+logging:
+  level:
+    org.springframework.security: INFO
+    org.flywaydb: INFO
+
+app:
+  security:
+    jwt:
+      secret: ${JWT_SECRET:ambercity-very-long-secret-key-change-me-1234567890}
+      access-token-seconds: ${JWT_ACCESS_SECONDS:900}
+      refresh-token-seconds: ${JWT_REFRESH_SECONDS:2592000}
+    recovery:
+      admin-code: ${RECOVERY_ADMIN_CODE:MT-RECOVER-2026}
+      code-ttl-minutes: ${RECOVERY_CODE_TTL_MINUTES:15}
+      mail-enabled: ${RECOVERY_MAIL_ENABLED:false}
+      mail-from: ${RECOVERY_MAIL_FROM:no-reply@myhouse.local}
+    bootstrap:
+      reset-default-admin-on-startup: ${RESET_DEFAULT_ADMIN_ON_STARTUP:true}
+  licence:
+    rsa-private: ${LICENCE_RSA_PRIVATE:}
+    rsa-public: ${LICENCE_RSA_PUBLIC:}
+  payment:
+    flutterwave:
+      enabled: ${FLUTTERWAVE_ENABLED:false}
+      public-key: ${FLUTTERWAVE_PUBLIC_KEY:}
+      secret-key: ${FLUTTERWAVE_SECRET_KEY:}
+  notifications:
+    whatsapp:
+      enabled: ${WHATSAPP_ENABLED:false}
+      token: ${WHATSAPP_TOKEN:}
+      phone-id: ${WHATSAPP_PHONE_ID:}
+    sendgrid:
+      enabled: ${SENDGRID_ENABLED:false}
+      api-key: ${SENDGRID_API_KEY:}
+      from: ${SENDGRID_FROM:no-reply@myhouse.local}
+    expo:
+      enabled: ${EXPO_PUSH_ENABLED:false}
+      access-token: ${EXPO_PUSH_TOKEN:}

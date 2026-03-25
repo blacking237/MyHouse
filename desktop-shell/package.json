@@ -1,0 +1,55 @@
+{
+  "name": "myhouse-desktop-shell",
+  "version": "0.1.0",
+  "private": true,
+  "main": "electron-main.js",
+  "description": "Desktop shell for the MyHouse web console",
+  "scripts": {
+    "dev": "set ELECTRON_RUN_AS_NODE= && electron .",
+    "dev:remote": "set ELECTRON_RUN_AS_NODE= && set MYHOUSE_WEB_URL=http://localhost:19006 && electron .",
+    "dev:local": "set ELECTRON_RUN_AS_NODE= && set MYHOUSE_WEB_URL= && electron .",
+    "launch:local": "powershell -ExecutionPolicy Bypass -File .\\launch-local.ps1",
+    "launch:remote": "powershell -ExecutionPolicy Bypass -File .\\launch-remote.ps1",
+    "launch:debug": "set MYHOUSE_DESKTOP_DEBUG=1 && powershell -ExecutionPolicy Bypass -File .\\launch-local.ps1",
+    "pack:win": "electron-builder --win nsis portable",
+    "dist:win": "powershell -ExecutionPolicy Bypass -File .\\build-desktop-win.ps1"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.myhouse.desktop",
+    "productName": "MyHouse",
+    "artifactName": "MyHouse-${version}-${arch}.${ext}",
+    "directories": {
+      "output": "dist-desktop"
+    },
+    "files": [
+      "electron-main.js",
+      "electron-preload.js",
+      "package.json",
+      "../dist/**/*"
+    ],
+    "extraMetadata": {
+      "main": "electron-main.js"
+    },
+    "win": {
+      "icon": "MyHouse.png",
+      "signAndEditExecutable": false,
+      "target": [
+        "nsis",
+        "portable"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "installerIcon": "MyHouse.png",
+      "uninstallerIcon": "MyHouse.png",
+      "installerHeaderIcon": "MyHouse.png",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}

@@ -1,0 +1,5 @@
+ALTER TABLE exit_reports
+  ALTER COLUMN debt_total TYPE NUMERIC(12,2) USING debt_total::NUMERIC(12,2),
+  ALTER COLUMN repair_cost TYPE NUMERIC(12,2) USING repair_cost::NUMERIC(12,2),
+  ALTER COLUMN deposit_used TYPE NUMERIC(12,2) USING deposit_used::NUMERIC(12,2),
+  ALTER COLUMN balance TYPE NUMERIC(12,2) USING balance::NUMERIC(12,2);

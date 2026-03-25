@@ -1,0 +1,6 @@
+ALTER TABLE maintenance_tickets
+  ADD COLUMN IF NOT EXISTS due_at TIMESTAMP NULL;
+
+ALTER TABLE exit_reports
+  ADD COLUMN IF NOT EXISTS deposit_total NUMERIC(12,2) NULL,
+  ADD COLUMN IF NOT EXISTS common_charges NUMERIC(12,2) NULL;

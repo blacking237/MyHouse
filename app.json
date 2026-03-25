@@ -1,0 +1,36 @@
+{
+  "expo": {
+    "name": "MyHouse",
+    "slug": "myhouse",
+    "version": "1.0.1",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "newArchEnabled": false,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#1A56A0"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1A56A0",
+        "monochromeImage": "./assets/adaptive-icon-mono.png"
+      },
+      "package": "com.myhouse.app",
+      "versionCode": 2,
+      "blockedPermissions": [
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.VIBRATE"
+      ],
+      "permissions": []
+    },
+    "scheme": "myhouse",
+    "plugins": [
+      "expo-sqlite"
+    ]
+  }
+}

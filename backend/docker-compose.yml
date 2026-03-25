@@ -1,0 +1,15 @@
+version: "3.9"
+services:
+  myhouse-postgres:
+    image: postgres:15
+    container_name: myhouse-postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-myhouse}
+      POSTGRES_USER: ${POSTGRES_USER:-myhouse}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-myhouse}
+    ports:
+      - "5432:5432"
+    volumes:
+      - myhouse_pg_data:/var/lib/postgresql/data
+volumes:
+  myhouse_pg_data:

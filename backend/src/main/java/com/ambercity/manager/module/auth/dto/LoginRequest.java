@@ -1,0 +1,8 @@
+package com.ambercity.manager.module.auth.dto;
+
+import jakarta.validation.constraints.NotBlank;
+
+public record LoginRequest(
+  @NotBlank String username,
+  @NotBlank String password
+) {}
