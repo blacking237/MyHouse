@@ -6,6 +6,7 @@ Ce dossier contient uniquement les fichiers utiles pour redeployer :
 - shell bureau Electron
 - backend Spring Boot
 - scripts de build utiles
+- modeles de deploiement dans `deploy/`
 
 Les dossiers generes ont ete retires volontairement : `node_modules`, `target`, `build`, bases locales, logs et artefacts temporaires.
 
@@ -17,60 +18,42 @@ Les dossiers generes ont ete retires volontairement : `node_modules`, `target`, 
 - HTTPS actif avec un vrai certificat
 - Windows Server ou Linux selon votre choix
 
-## 3. Configuration frontend
-Renseigner le fichier `.env.production` a la racine :
+## 3. Fichiers a renseigner
+### Frontend
+Copier `.env.production.example` vers `.env.production` si besoin, puis verifier :
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=https://api.myhouse.cm
 ```
 
-Cette URL doit etre l URL publique definitive du backend.
-
-## 4. Configuration backend
-Copier `backend/.env.production.example` vers un vrai fichier d environnement serveur puis renseigner :
+### Backend
+Copier `backend/.env.production.example` vers `backend/.env.production`, puis renseigner :
 - acces PostgreSQL
 - secret JWT
 - SMTP
-- integrations optionnelles (Flutterwave, WhatsApp, SendGrid, Expo Push)
+- integrations optionnelles
 
-## 5. Demarrage backend
-Depuis `backend` :
+## 4. Reverse proxy
+Des exemples Nginx sont fournis :
+- `deploy/nginx/app.myhouse.cm.conf`
+- `deploy/nginx/api.myhouse.cm.conf`
 
-### Windows
-```powershell
-.\mvnw.cmd spring-boot:run
-```
+Architecture recommandee :
+- `https://app.myhouse.cm` pour le frontend web
+- `https://api.myhouse.cm` pour le backend Spring Boot
 
-### Linux
-```bash
-./mvnw spring-boot:run
-```
-
-Pour produire un jar :
-
-### Windows
-```powershell
-.\mvnw.cmd clean package
-```
-
-### Linux
-```bash
-./mvnw clean package
-java -jar target/ambercity-backend-0.0.1-SNAPSHOT.jar
-```
-
-## 6. Build web
-Depuis la racine du projet :
+## 5. Build web
+Depuis la racine :
 
 ```bash
 npm install
 npm run web:prod
 ```
 
-Publier ensuite le contenu exporte sur votre hebergement web ou derriere Nginx.
+Publier ensuite le contenu web exporte sur le serveur web.
 
-## 7. Build Android release
-Depuis la racine du projet :
+## 6. Build Android release
+Depuis la racine :
 
 ```bash
 npm install
@@ -80,22 +63,25 @@ npm run android:release
 APK attendue :
 `dist/android/MyHouse-1.0.1-release.apk`
 
-## 8. Build bureau Windows
-Installer d abord les dependances du shell Electron :
-
+## 7. Build bureau Windows
 ```bash
 npm install --prefix .\desktop-shell
 npm run web:prod
 npm --prefix .\desktop-shell run dist:win
 ```
 
-## 9. Reverse proxy recommande
-- `https://app.myhouse.cm` vers l application web
-- `https://api.myhouse.cm` vers le backend Spring Boot
-- activer CORS uniquement pour les domaines frontend autorises
-- ne jamais laisser `localhost` ou `10.0.2.2` en production
+## 8. Demarrage backend
+### Windows
+Script fourni :
+`deploy/windows/start-backend.ps1`
 
-## 10. Verification finale
+### Linux
+Script fourni :
+`deploy/linux/start-backend.sh`
+
+Ces scripts chargent `backend/.env.production`, construisent le jar, puis lancent le backend.
+
+## 9. Verification finale
 Verifier au minimum :
 - ouverture de session
 - creation resident
