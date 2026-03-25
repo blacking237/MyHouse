@@ -28,6 +28,7 @@ import {
   assignResidentRoom,
   listPendingUsers,
   approveUserAccount,
+  createUserAccount,
   rejectUserAccount,
   recordPayment,
   renewContract,
@@ -491,13 +492,21 @@ export default function ManagerDesktopScreen() {
   );
 
   const handleCreateConcierge = React.useCallback(async () => {
-    const result = await createRoleAccount(db, accountUsername, accountPassword, accountRole, currentUsername || 'manager');
-    if (!result.ok) {
-      setAccountNotice({
-        type: 'error',
-        message: result.reason === 'duplicate' ? t('accountExists') : t('fillAllFields'),
+    try {
+      await createUserAccount({
+        username: accountUsername.trim().toLowerCase(),
+        password: accountPassword,
+        role: accountRole === 'tenant' ? 'RESIDENT' : 'CONCIERGE',
       });
-      return;
+    } catch (apiError) {
+      const result = await createRoleAccount(db, accountUsername, accountPassword, accountRole, currentUsername || 'manager');
+      if (!result.ok) {
+        setAccountNotice({
+          type: 'error',
+          message: result.reason === 'duplicate' ? t('accountExists') : t('fillAllFields'),
+        });
+        return;
+      }
     }
     const accounts = await listRoleAccounts(db);
     setRoleAccounts(accounts.filter((account) => account.role === 'concierge' || account.role === 'tenant'));

@@ -5,6 +5,7 @@ import MeterTrackDesktopScreen from '../../MeterTrackDesktopScreen';
 import { useThemeColors } from '../../../database/PreferencesContext';
 import { useAuth } from '../../../database/AuthContext';
 import { useDatabaseOptional } from '../../../database/DatabaseContext';
+import { createUserAccount } from '../../../services/BackendApi';
 
 type ConciergeWorkspace = 'inspection' | 'metertrack' | 'accounts';
 
@@ -42,14 +43,22 @@ export default function ConciergeDesktopScreen() {
   }, [loadAccounts]);
 
   const handleCreateResidentAccount = React.useCallback(async () => {
-    const result = await createRoleAccount(db, username, password, 'tenant', currentUsername || 'concierge');
-    if (!result.ok) {
-      setNotice({ type: 'error', message: result.reason === 'duplicate' ? 'Ce compte resident existe deja.' : 'Creation impossible. Verifiez les informations.' });
-      return;
+    try {
+      await createUserAccount({
+        username: username.trim().toLowerCase(),
+        password,
+        role: 'RESIDENT',
+      });
+    } catch (apiError) {
+      const result = await createRoleAccount(db, username, password, 'tenant', currentUsername || 'concierge');
+      if (!result.ok) {
+        setNotice({ type: 'error', message: result.reason === 'duplicate' ? 'Ce compte resident existe deja.' : 'Creation impossible. Verifiez les informations.' });
+        return;
+      }
     }
     setUsername('');
     setPassword('');
-    setNotice({ type: 'success', message: 'Compte resident cree. Il reste soumis a validation.' });
+    setNotice({ type: 'success', message: 'Compte resident cree et synchronise avec le backend.' });
     await loadAccounts();
   }, [createRoleAccount, currentUsername, db, loadAccounts, password, username]);
 

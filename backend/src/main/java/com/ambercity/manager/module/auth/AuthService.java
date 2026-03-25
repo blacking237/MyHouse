@@ -298,12 +298,18 @@ public class AuthService {
     user.setUsername(username);
     user.setPasswordHash(passwordEncoder.encode(request.password()));
     user.setRole(targetRole);
-    user.setStatus(UserStatus.PENDING);
+    UserStatus initialStatus = shouldAutoActivate(creator.getRole(), targetRole)
+      ? UserStatus.ACTIVE
+      : UserStatus.PENDING;
+    user.setStatus(initialStatus);
     user.setActif(true);
     user.setCreatedAt(LocalDateTime.now());
     user.setCreatedBy(creator.getUsername());
     user.setCreatedByRole(creator.getRole().name());
     user.setCreatedByUserId(creator.getId());
+    if (initialStatus == UserStatus.ACTIVE) {
+      user.setValidatedAt(LocalDateTime.now());
+    }
     if (request.residentExternalId() != null && !request.residentExternalId().isBlank()) {
       ResidentEntity resident = residentRepository.findByExternalId(request.residentExternalId())
         .orElseThrow(() -> new BadCredentialsException("Resident not found"));
@@ -397,6 +403,14 @@ public class AuthService {
     return switch (approver) {
       case SUPER_ADMIN -> true;
       case ADMIN_COMMERCIAL -> target == UserRole.MANAGER;
+      case MANAGER -> target == UserRole.CONCIERGE || target == UserRole.RESIDENT;
+      default -> false;
+    };
+  }
+
+  private boolean shouldAutoActivate(UserRole creator, UserRole target) {
+    return switch (creator) {
+      case SUPER_ADMIN -> true;
       case MANAGER -> target == UserRole.CONCIERGE || target == UserRole.RESIDENT;
       default -> false;
     };

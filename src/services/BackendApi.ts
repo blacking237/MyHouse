@@ -38,6 +38,13 @@ export type ApiUserSummary = {
   rejectedAt?: string | null;
 };
 
+export type CreateUserAccountPayload = {
+  username: string;
+  password: string;
+  role: 'CONCIERGE' | 'RESIDENT' | 'MANAGER' | 'ADMIN_COMMERCIAL' | 'ADMIN_SAV' | 'ADMIN_JURIDIQUE' | 'ADMIN_COMPTA';
+  residentExternalId?: string | null;
+};
+
 export type BackendMe = {
   id: number;
   username: string;
@@ -2612,6 +2619,29 @@ export async function rejectUserAccount(userId: number, reason?: string): Promis
     actif: Boolean(raw.actif),
     createdBy: raw.createdBy == null ? null : String(raw.createdBy),
     status: String(raw.status ?? 'REJECTED'),
+    createdAt: raw.createdAt == null ? null : String(raw.createdAt),
+    validatedAt: raw.validatedAt == null ? null : String(raw.validatedAt),
+    rejectedAt: raw.rejectedAt == null ? null : String(raw.rejectedAt),
+  };
+}
+
+export async function createUserAccount(payload: CreateUserAccountPayload): Promise<ApiUserSummary> {
+  const raw = await request<Record<string, unknown>>('/api/v1/auth/users', {
+    method: 'POST',
+    body: {
+      username: payload.username,
+      password: payload.password,
+      role: payload.role,
+      residentExternalId: payload.residentExternalId ?? null,
+    },
+  });
+  return {
+    id: Number(raw.id),
+    username: String(raw.username ?? ''),
+    role: String(raw.role ?? ''),
+    actif: Boolean(raw.actif),
+    createdBy: raw.createdBy == null ? null : String(raw.createdBy),
+    status: String(raw.status ?? 'PENDING'),
     createdAt: raw.createdAt == null ? null : String(raw.createdAt),
     validatedAt: raw.validatedAt == null ? null : String(raw.validatedAt),
     rejectedAt: raw.rejectedAt == null ? null : String(raw.rejectedAt),
