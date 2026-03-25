@@ -5,7 +5,7 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import { SIZES } from '../constants/theme';
 import { type AppRole, useAuth } from '../database/AuthContext';
-import { useDatabase } from '../database/DatabaseContext';
+import { useDatabaseOptional } from '../database/DatabaseContext';
 import { usePreferences, useThemeColors } from '../database/PreferencesContext';
 import { exportResidents, exportInvoices, exportPayments, exportComplet } from '../services/ExportService';
 import { getRecoveryEmail, setRecoveryEmail } from '../services/BackendApi';
@@ -16,7 +16,7 @@ function getCurrentMonth(): string {
 }
 
 export default function SettingsScreen() {
-  const db = useDatabase();
+  const db = useDatabaseOptional();
   const { logout, changePassword, activeRole, availableRoles, setActiveRole } = useAuth();
   const navigation = useNavigation<any>();
   const colors = useThemeColors();
@@ -67,6 +67,10 @@ export default function SettingsScreen() {
   };
 
   const handleExport = async (type: string) => {
+    if (!db) {
+      Alert.alert(t('info'), t('webLabel'));
+      return;
+    }
     try {
       switch (type) {
         case 'residents':
@@ -191,25 +195,27 @@ export default function SettingsScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>{t('exportData')} ({mois})</Text>
+      {db ? (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{t('exportData')} ({mois})</Text>
 
-        <TouchableOpacity style={styles.exportButton} onPress={() => handleExport('residents')}>
-          <Text style={styles.exportButtonText}>{t('exportResidentsXlsx')}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.exportButton} onPress={() => handleExport('residents')}>
+            <Text style={styles.exportButtonText}>{t('exportResidentsXlsx')}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.exportButton} onPress={() => handleExport('invoices')}>
-          <Text style={styles.exportButtonText}>{t('exportInvoicesXlsx')}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.exportButton} onPress={() => handleExport('invoices')}>
+            <Text style={styles.exportButtonText}>{t('exportInvoicesXlsx')}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.exportButton} onPress={() => handleExport('payments')}>
-          <Text style={styles.exportButtonText}>{t('exportPaymentsXlsx')}</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.exportButton} onPress={() => handleExport('payments')}>
+            <Text style={styles.exportButtonText}>{t('exportPaymentsXlsx')}</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={[styles.exportButton, styles.exportCompletButton]} onPress={() => handleExport('complet')}>
-          <Text style={styles.exportButtonText}>{t('exportCompleteXlsx')}</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity style={[styles.exportButton, styles.exportCompletButton]} onPress={() => handleExport('complet')}>
+            <Text style={styles.exportButtonText}>{t('exportCompleteXlsx')}</Text>
+          </TouchableOpacity>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>{t('changePasswordSection')}</Text>
@@ -275,7 +281,7 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>{t('platformLabel')}</Text>
-          <Text style={styles.infoValue}>{t('androidLabel')}</Text>
+          <Text style={styles.infoValue}>{db ? t('androidLabel') : t('webLabel')}</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>{t('productManager')}</Text>

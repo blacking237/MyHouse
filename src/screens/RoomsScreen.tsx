@@ -280,7 +280,7 @@ export default function RoomsScreen() {
             />
 
             <TouchableOpacity style={styles.contactButton} onPress={pickFromContacts}>
-              <Text style={styles.contactButtonText}>Choisir depuis les contacts</Text>
+              <Text style={styles.contactButtonText}>Choisir depuis mes contacts</Text>
             </TouchableOpacity>
 
             <View style={styles.modalActions}>
