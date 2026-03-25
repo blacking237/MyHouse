@@ -29,6 +29,7 @@ export default function RoomsScreen() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editRoom, setEditRoom] = useState<Room | null>(null);
   const [form, setForm] = useState({ numero: '', nom: '', whatsapp: '' });
+  const [saving, setSaving] = useState(false);
 
   const loadRooms = useCallback(async () => {
     try {
@@ -132,7 +133,9 @@ export default function RoomsScreen() {
 
     const [nom, ...prenoms] = nomComplet.split(' ');
     const prenom = prenoms.join(' ').trim() || '-';
+    const assignmentDate = new Date().toISOString().split('T')[0];
 
+    setSaving(true);
     try {
       if (editRoom) {
         await patchRoom(editRoom.id, {
@@ -153,7 +156,7 @@ export default function RoomsScreen() {
             whatsapp,
             telephone: whatsapp,
           });
-          await assignResidentRoom(createdResident.id, editRoom.id, new Date().toISOString().split('T')[0]);
+          await assignResidentRoom(createdResident.id, editRoom.id, assignmentDate);
         }
       } else {
         const createdRoom = await createRoom({
@@ -165,10 +168,11 @@ export default function RoomsScreen() {
           whatsapp,
           telephone: whatsapp,
         });
-        await assignResidentRoom(createdResident.id, createdRoom.id, new Date().toISOString().split('T')[0]);
+        await assignResidentRoom(createdResident.id, createdRoom.id, assignmentDate);
       }
       setModalVisible(false);
       await loadRooms();
+      Alert.alert(t('success'), editRoom ? 'Chambre mise a jour.' : 'Chambre creee avec succes.');
     } catch (error: any) {
       console.error('Save room error:', error);
       if (error.message?.includes('UNIQUE') || error.message?.includes('already exists')) {
@@ -176,6 +180,8 @@ export default function RoomsScreen() {
       } else {
         Alert.alert(t('error'), getErrorMessage(error));
       }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -278,11 +284,11 @@ export default function RoomsScreen() {
             </TouchableOpacity>
 
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)}>
+              <TouchableOpacity style={styles.cancelButton} onPress={() => setModalVisible(false)} disabled={saving}>
                 <Text style={styles.cancelButtonText}>{t('cancel')}</Text>
               </TouchableOpacity>
-              <TouchableOpacity style={styles.saveButton} onPress={saveRoom}>
-                <Text style={styles.saveButtonText}>{t('save')}</Text>
+              <TouchableOpacity style={[styles.saveButton, saving && styles.saveButtonDisabled]} onPress={saveRoom} disabled={saving}>
+                <Text style={styles.saveButtonText}>{saving ? `${t('save')}...` : t('save')}</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -374,6 +380,7 @@ function createStyles(colors: ReturnType<typeof useThemeColors>) {
     cancelButton: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: SIZES.radius, backgroundColor: colors.background },
     cancelButtonText: { fontSize: SIZES.md, color: colors.textLight },
     saveButton: { paddingHorizontal: 20, paddingVertical: 12, borderRadius: SIZES.radius, backgroundColor: colors.primary },
+    saveButtonDisabled: { opacity: 0.7 },
     saveButtonText: { fontSize: SIZES.md, color: colors.white, fontWeight: 'bold' },
   });
 }

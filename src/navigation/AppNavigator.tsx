@@ -1,5 +1,5 @@
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, useWindowDimensions } from 'react-native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer, DarkTheme, DefaultTheme } from '@react-navigation/native';
@@ -189,6 +189,8 @@ export default function AppNavigator() {
   const { activeRole } = useAuth();
   const colors = useThemeColors();
   const tabs = getTabsByRole(activeRole);
+  const { width } = useWindowDimensions();
+  const useCompactWebNavigation = Platform.OS === 'web' && width < 1024;
 
   const navTheme = themeMode === 'dark'
     ? {
@@ -214,7 +216,7 @@ export default function AppNavigator() {
         },
       };
 
-  if (Platform.OS === 'web') {
+  if (Platform.OS === 'web' && !useCompactWebNavigation) {
     return (
       <NavigationContainer theme={navTheme}>
         {activeRole === 'tenant' ? (
