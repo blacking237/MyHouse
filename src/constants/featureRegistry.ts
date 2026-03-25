@@ -50,10 +50,13 @@ export const FEATURE_SECTIONS: FeatureSection[] = [
 ];
 
 export function roleHasFeature(role: AppRole, feature: FeatureKey): boolean {
+  if (role === 'superAdmin') {
+    return true;
+  }
   const allowed = FEATURE_REGISTRY[feature] ?? [];
   if (allowed.includes(role)) return true;
   if (allowed.includes('admin')) {
-    return role === 'superAdmin' || role.startsWith('admin');
+    return role.startsWith('admin');
   }
   return false;
 }

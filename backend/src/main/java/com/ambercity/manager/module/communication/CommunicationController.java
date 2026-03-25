@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/communication")
-@PreAuthorize("hasAnyRole('ADMIN','CONCIERGE')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','MANAGER','CONCIERGE')")
 public class CommunicationController {
 
   @GetMapping("/feedbacks")
@@ -22,4 +22,3 @@ public class CommunicationController {
     return List.of();
   }
 }
-

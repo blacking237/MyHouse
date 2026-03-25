@@ -40,13 +40,13 @@ public class OcrController {
   }
 
   @PostMapping("/identity")
-  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','MANAGER','CONCIERGE')")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','MANAGER','CONCIERGE')")
   public OcrIdentityResponse parseIdentity(@Valid @RequestBody OcrIdentityRequest request) {
     return ocrService.parseIdentity(request);
   }
 
   @PostMapping("/identity/register")
-  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN','MANAGER','CONCIERGE')")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','MANAGER','CONCIERGE')")
   public Map<String, Object> registerIdentity(
     Authentication authentication,
     @Valid @RequestBody OcrRegisterRequest request

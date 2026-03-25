@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/developer")
-@PreAuthorize("hasAnyRole('ADMIN')")
+@PreAuthorize("hasAnyRole('SUPER_ADMIN','MANAGER')")
 public class DeveloperController {
 
   @GetMapping("/clients")
