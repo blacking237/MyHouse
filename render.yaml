@@ -3,8 +3,8 @@ services:
     name: myhouse-api
     runtime: docker
     plan: free
-    dockerContext: ./backend
-    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    dockerfilePath: ./Dockerfile
     autoDeploy: true
     healthCheckPath: /actuator/health
     envVars:
