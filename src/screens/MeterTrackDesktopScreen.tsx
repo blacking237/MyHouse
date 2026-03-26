@@ -1272,7 +1272,7 @@ export default function MeterTrackDesktopScreen({ embedded = false, defaultPage 
       </SectionCard>
       <SectionCard styles={styles} title={t('about')}>
         <InfoRow styles={styles} label={t('appLabel')} value="METERTRACK" />
-        <InfoRow styles={styles} label={t('versionLabel')} value="1.0.1" />
+        <InfoRow styles={styles} label={t('versionLabel')} value="1.1.0" />
         <InfoRow styles={styles} label={t('platformLabel')} value={t('bureauWeb')} />
         <InfoRow styles={styles} label={t('productManager')} value="Njanga Martial" />
         <InfoRow styles={styles} label={t('contact')} value="+237681681515" />

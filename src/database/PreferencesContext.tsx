@@ -16,7 +16,7 @@ type PreferencesContextType = {
   t: (key: string) => string;
 };
 
-const APP_VERSION = '1.0.1';
+const APP_VERSION = '1.1.0';
 
 const DICT: Record<Language, Record<string, string>> = {
   fr: {

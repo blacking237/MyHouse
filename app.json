@@ -2,7 +2,7 @@
   "expo": {
     "name": "MyHouse",
     "slug": "myhouse",
-    "version": "1.0.1",
+    "version": "1.1.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -19,7 +19,7 @@
         "monochromeImage": "./assets/adaptive-icon-mono.png"
       },
       "package": "com.myhouse.app",
-      "versionCode": 2,
+      "versionCode": 3,
       "blockedPermissions": [
         "android.permission.READ_EXTERNAL_STORAGE",
         "android.permission.WRITE_EXTERNAL_STORAGE",

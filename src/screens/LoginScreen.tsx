@@ -188,7 +188,7 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.footerDivider} />
-            <Text style={styles.footerVersion}>Version 1.0.1</Text>
+            <Text style={styles.footerVersion}>Version 1.1.0</Text>
             <Text style={styles.footerCopyright}>© 2026 MyHouse</Text>
           </View>
         </View>

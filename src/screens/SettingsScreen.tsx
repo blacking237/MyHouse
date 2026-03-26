@@ -277,7 +277,7 @@ export default function SettingsScreen() {
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>{t('versionLabel')}</Text>
-          <Text style={styles.infoValue}>1.0.1</Text>
+          <Text style={styles.infoValue}>1.1.0</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.infoLabel}>{t('platformLabel')}</Text>

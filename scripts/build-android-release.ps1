@@ -8,6 +8,7 @@ $ndkRoot = Join-Path $sdkRoot "ndk\25.1.8937393"
 & (Join-Path $PSScriptRoot "apply-local-patches.ps1")
 
 $env:NODE_ENV = "production"
+$env:EXPO_PUBLIC_API_BASE_URL = "https://myhouse-api.onrender.com"
 $env:JAVA_HOME = "C:\Program Files\Eclipse Adoptium\jdk-17.0.18.8-hotspot"
 $env:ANDROID_HOME = $sdkRoot
 $env:ANDROID_SDK_ROOT = $sdkRoot
