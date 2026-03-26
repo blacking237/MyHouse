@@ -15,7 +15,7 @@ type QuickAction = {
 
 const ROLE_COPY: Record<AppRole, { title: string; subtitle: string; actions: QuickAction[] }> = {
   tenant: {
-    title: 'Espace locataire',
+    title: 'Espace RESIDENT',
     subtitle: 'Factures, paiements, contrat et suivi de votre logement.',
     actions: [
       { label: 'Mes factures', icon: 'document-text-outline', route: 'Factures', description: 'Consulter les factures et echeances.' },
@@ -24,7 +24,7 @@ const ROLE_COPY: Record<AppRole, { title: string; subtitle: string; actions: Qui
     ],
   },
   concierge: {
-    title: 'Espace concierge',
+    title: 'Espace CONCIERGE',
     subtitle: 'Operations terrain, relevés, diffusions et tickets.',
     actions: [
       { label: 'Operations', icon: 'speedometer-outline', route: 'Dashboard', description: 'Saisir les index et piloter les factures.' },
@@ -33,7 +33,7 @@ const ROLE_COPY: Record<AppRole, { title: string; subtitle: string; actions: Qui
     ],
   },
   manager: {
-    title: 'Espace gestionnaire',
+    title: 'Espace GESTIONNAIRE',
     subtitle: 'Pilotage des logements, residents, loyers et rapports.',
     actions: [
       { label: 'Dashboard', icon: 'grid-outline', route: 'Dashboard', description: 'Vue d ensemble de votre activite.' },
@@ -42,7 +42,7 @@ const ROLE_COPY: Record<AppRole, { title: string; subtitle: string; actions: Qui
     ],
   },
   adminCommercial: {
-    title: 'Admin commercial',
+    title: 'ADMIN_COMMERCIAL',
     subtitle: 'Souscriptions, equipe et pipeline commercial.',
     actions: [
       { label: 'Pipeline', icon: 'golf-outline', description: 'Suivi des prospects et validations.' },
@@ -51,7 +51,7 @@ const ROLE_COPY: Record<AppRole, { title: string; subtitle: string; actions: Qui
     ],
   },
   adminSav: {
-    title: 'Admin UX / SAV',
+    title: 'ADMIN_SAV',
     subtitle: 'Tickets support, satisfaction et ameliorations produit.',
     actions: [
       { label: 'Tickets', icon: 'construct-outline', description: 'Trier et assigner les tickets.' },
@@ -60,7 +60,7 @@ const ROLE_COPY: Record<AppRole, { title: string; subtitle: string; actions: Qui
     ],
   },
   adminJuridique: {
-    title: 'Admin juridique',
+    title: 'ADMIN_JURIDIQUE',
     subtitle: 'Contrats types, conformite et alertes legales.',
     actions: [
       { label: 'Contrats', icon: 'document-lock-outline', description: 'Valider les modeles par pays.' },
@@ -69,7 +69,7 @@ const ROLE_COPY: Record<AppRole, { title: string; subtitle: string; actions: Qui
     ],
   },
   adminCompta: {
-    title: 'Admin comptabilite',
+    title: 'ADMIN_COMPTA',
     subtitle: 'Revenus, TVA, exports et reconciliation financiere.',
     actions: [
       { label: 'Revenus', icon: 'cash-outline', description: 'Suivre les flux par pays.' },
@@ -78,7 +78,7 @@ const ROLE_COPY: Record<AppRole, { title: string; subtitle: string; actions: Qui
     ],
   },
   superAdmin: {
-    title: 'Super Admin',
+    title: 'SUPER_ADMIN',
     subtitle: 'Pilotage global MyHouse: equipe, licences, revenus et parametres.',
     actions: [
       { label: 'KPIs', icon: 'bar-chart-outline', description: 'Voir la performance globale CEMAC.' },

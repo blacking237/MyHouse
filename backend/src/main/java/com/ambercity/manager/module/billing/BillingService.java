@@ -1,5 +1,7 @@
 package com.ambercity.manager.module.billing;
 
+import com.ambercity.manager.module.auth.domain.UserEntity;
+import com.ambercity.manager.module.auth.repo.UserRepository;
 import com.ambercity.manager.module.billing.domain.InvoiceEntity;
 import com.ambercity.manager.module.billing.domain.InvoiceLineEntity;
 import com.ambercity.manager.module.billing.dto.BillingCalculateResponse;
@@ -17,6 +19,7 @@ import com.ambercity.manager.module.resident.domain.ResidentRoomHistoryEntity;
 import com.ambercity.manager.module.resident.repo.ResidentRoomHistoryRepository;
 import com.ambercity.manager.module.room.domain.RoomEntity;
 import com.ambercity.manager.module.room.repo.RoomRepository;
+import com.ambercity.manager.shared.security.JwtService;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.LocalDateTime;
@@ -28,6 +31,7 @@ import java.util.function.Function;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -49,6 +53,7 @@ public class BillingService {
   private final InvoiceLineRepository invoiceLineRepository;
   private final ContractRepository contractRepository;
   private final CommonChargeService commonChargeService;
+  private final UserRepository userRepository;
 
   public BillingService(
     MonthConfigRepository monthConfigRepository,
@@ -58,7 +63,8 @@ public class BillingService {
     InvoiceRepository invoiceRepository,
     InvoiceLineRepository invoiceLineRepository,
     ContractRepository contractRepository,
-    CommonChargeService commonChargeService
+    CommonChargeService commonChargeService,
+    UserRepository userRepository
   ) {
     this.monthConfigRepository = monthConfigRepository;
     this.indexReadingRepository = indexReadingRepository;
@@ -68,6 +74,7 @@ public class BillingService {
     this.invoiceLineRepository = invoiceLineRepository;
     this.contractRepository = contractRepository;
     this.commonChargeService = commonChargeService;
+    this.userRepository = userRepository;
   }
 
   @Transactional
@@ -177,10 +184,10 @@ public class BillingService {
   }
 
   @Transactional(readOnly = true)
-  public List<InvoiceResponse> listInvoices(String mois) {
+  public List<InvoiceResponse> listInvoices(String mois, Authentication authentication) {
     validateMois(mois);
     MonthConfigEntity config = monthConfigRepository.findByMois(mois).orElse(null);
-    return invoiceRepository.findByMoisOrderByRoomNumeroChambreAsc(mois).stream()
+    return resolveInvoicesForActor(mois, authentication).stream()
       .map(i -> {
         List<InvoiceLineEntity> lines = invoiceLineRepository.findByInvoiceIdOrderByIdAsc(i.getId());
         InvoiceLineEntity water = lines.stream().filter(l -> TYPE_EAU.equals(l.getType())).findFirst().orElse(null);
@@ -207,6 +214,24 @@ public class BillingService {
         );
       })
       .toList();
+  }
+
+  private List<InvoiceEntity> resolveInvoicesForActor(String mois, Authentication authentication) {
+    if (authentication != null && authentication.getAuthorities().stream().anyMatch(auth -> "ROLE_RESIDENT".equals(auth.getAuthority()))) {
+      JwtService.TokenPrincipal principal = authentication.getPrincipal() instanceof JwtService.TokenPrincipal tokenPrincipal
+        ? tokenPrincipal
+        : null;
+      if (principal == null) {
+        throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Unauthenticated");
+      }
+      UserEntity user = userRepository.findByUsernameAndActifTrue(principal.username())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+      if (user.getResidentId() == null) {
+        return List.of();
+      }
+      return invoiceRepository.findByMoisAndResidentIdOrderByRoomNumeroChambreAsc(mois, user.getResidentId());
+    }
+    return invoiceRepository.findByMoisOrderByRoomNumeroChambreAsc(mois);
   }
 
   @Transactional

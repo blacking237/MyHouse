@@ -1,5 +1,6 @@
 package com.ambercity.manager.module.payment;
 
+import com.ambercity.manager.shared.security.JwtService;
 import com.ambercity.manager.module.payment.dto.PaymentRequest;
 import com.ambercity.manager.module.payment.dto.PaymentResponse;
 import com.ambercity.manager.module.payment.dto.PaymentStatusUpdateRequest;
@@ -26,15 +27,36 @@ public class PaymentController {
 
   @GetMapping("/invoice/{invoiceId}")
   @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMPTA','MANAGER','CONCIERGE','RESIDENT')")
-  public List<PaymentResponse> listByInvoice(@PathVariable("invoiceId") Long invoiceId) {
-    return paymentService.listByInvoice(invoiceId);
+  public List<PaymentResponse> listByInvoice(@PathVariable("invoiceId") Long invoiceId, Authentication authentication) {
+    return paymentService.listByInvoice(invoiceId, authentication);
   }
 
   @PostMapping
-  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMPTA','MANAGER','CONCIERGE')")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMPTA','MANAGER')")
   public PaymentResponse create(@Valid @RequestBody PaymentRequest request, Authentication authentication) {
-    String username = authentication == null ? "system" : authentication.getName();
+    String username = resolveUsername(authentication);
     return paymentService.create(request, username);
+  }
+
+  @PostMapping("/electricite")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMPTA','MANAGER','CONCIERGE')")
+  public PaymentResponse createElectricity(@Valid @RequestBody PaymentRequest request, Authentication authentication) {
+    String username = resolveUsername(authentication);
+    return paymentService.create(request, username, "ELECTRICITE");
+  }
+
+  @PostMapping("/loyer")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMPTA','MANAGER')")
+  public PaymentResponse createRent(@Valid @RequestBody PaymentRequest request, Authentication authentication) {
+    String username = resolveUsername(authentication);
+    return paymentService.create(request, username, "LOYER");
+  }
+
+  @PostMapping("/penalite")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMPTA','MANAGER')")
+  public PaymentResponse createPenalty(@Valid @RequestBody PaymentRequest request, Authentication authentication) {
+    String username = resolveUsername(authentication);
+    return paymentService.create(request, username, "PENALITE");
   }
 
   @PostMapping("/{paymentId}/status")
@@ -44,5 +66,16 @@ public class PaymentController {
     @Valid @RequestBody PaymentStatusUpdateRequest request
   ) {
     return paymentService.updateStatus(paymentId, request);
+  }
+
+  private String resolveUsername(Authentication authentication) {
+    if (authentication == null || authentication.getPrincipal() == null) {
+      return "system";
+    }
+    Object principal = authentication.getPrincipal();
+    if (principal instanceof JwtService.TokenPrincipal tokenPrincipal) {
+      return tokenPrincipal.username();
+    }
+    return authentication.getName();
   }
 }

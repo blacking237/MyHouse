@@ -31,7 +31,7 @@ public class MarketplaceController {
   }
 
   @GetMapping("/listings")
-  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMMERCIAL','MANAGER','CONCIERGE')")
+  @PreAuthorize("isAuthenticated()")
   public List<MarketplaceListingResponse> listListings(
     @RequestParam(required = false) String status,
     @RequestParam(required = false) String type,
@@ -41,7 +41,7 @@ public class MarketplaceController {
   }
 
   @PostMapping("/listings")
-  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMMERCIAL','MANAGER','CONCIERGE')")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMMERCIAL','MANAGER')")
   public MarketplaceListingResponse upsertListing(
     Authentication authentication,
     @Valid @RequestBody MarketplaceListingRequest request
@@ -54,7 +54,7 @@ public class MarketplaceController {
   }
 
   @PostMapping("/media")
-  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMMERCIAL','MANAGER','CONCIERGE')")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','ADMIN_COMMERCIAL','MANAGER')")
   public MarketplaceMediaResponse addMedia(@Valid @RequestBody MarketplaceMediaRequest request) {
     return service.addMedia(request);
   }

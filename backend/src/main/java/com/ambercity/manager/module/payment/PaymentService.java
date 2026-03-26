@@ -1,5 +1,7 @@
 package com.ambercity.manager.module.payment;
 
+import com.ambercity.manager.module.auth.domain.UserEntity;
+import com.ambercity.manager.module.auth.repo.UserRepository;
 import com.ambercity.manager.module.billing.domain.InvoiceEntity;
 import com.ambercity.manager.module.billing.repo.InvoiceRepository;
 import com.ambercity.manager.module.payment.domain.PaymentEntity;
@@ -15,6 +17,7 @@ import java.util.List;
 import java.util.UUID;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
@@ -25,6 +28,7 @@ public class PaymentService {
   private final PaymentRepository paymentRepository;
   private final InvoiceRepository invoiceRepository;
   private final NotificationService notificationService;
+  private final UserRepository userRepository;
 
   @Value("${app.payment.flutterwave.enabled:false}")
   private boolean flutterwaveEnabled;
@@ -32,20 +36,30 @@ public class PaymentService {
   public PaymentService(
     PaymentRepository paymentRepository,
     InvoiceRepository invoiceRepository,
-    NotificationService notificationService
+    NotificationService notificationService,
+    UserRepository userRepository
   ) {
     this.paymentRepository = paymentRepository;
     this.invoiceRepository = invoiceRepository;
     this.notificationService = notificationService;
+    this.userRepository = userRepository;
   }
 
   @Transactional(readOnly = true)
-  public List<PaymentResponse> listByInvoice(Long invoiceId) {
+  public List<PaymentResponse> listByInvoice(Long invoiceId, Authentication authentication) {
+    InvoiceEntity invoice = invoiceRepository.findById(invoiceId)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
+    ensureResidentOwnsInvoice(authentication, invoice);
     return paymentRepository.findByInvoiceId(invoiceId).stream().map(this::toResponse).toList();
   }
 
   @Transactional
   public PaymentResponse create(PaymentRequest request, String username) {
+    return create(request, username, null);
+  }
+
+  @Transactional
+  public PaymentResponse create(PaymentRequest request, String username, String paymentType) {
     InvoiceEntity invoice = invoiceRepository.findById(request.invoiceId())
       .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
 
@@ -60,7 +74,7 @@ public class PaymentService {
     entity.setInvoice(invoice);
     entity.setMontantPaye(request.amount());
     entity.setMethod(request.method());
-    entity.setObservation(request.observation());
+    entity.setObservation(decorateObservation(request.observation(), paymentType));
     entity.setSaisiPar(username);
     entity.setDatePaiement(LocalDateTime.now());
     entity.setUpdatedAt(LocalDateTime.now());
@@ -72,6 +86,39 @@ public class PaymentService {
       notifyPayment(saved);
     }
     return toResponse(saved);
+  }
+
+  private void ensureResidentOwnsInvoice(Authentication authentication, InvoiceEntity invoice) {
+    if (authentication == null || authentication.getAuthorities().stream().noneMatch(auth -> "ROLE_RESIDENT".equals(auth.getAuthority()))) {
+      return;
+    }
+    UserEntity user = userRepository.findByUsernameAndActifTrue(resolveUsername(authentication))
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found"));
+    if (user.getResidentId() == null || invoice.getResident() == null || !user.getResidentId().equals(invoice.getResident().getId())) {
+      throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Forbidden");
+    }
+  }
+
+  private String resolveUsername(Authentication authentication) {
+    if (authentication == null || authentication.getPrincipal() == null) {
+      return "system";
+    }
+    Object principal = authentication.getPrincipal();
+    if (principal instanceof com.ambercity.manager.shared.security.JwtService.TokenPrincipal tokenPrincipal) {
+      return tokenPrincipal.username();
+    }
+    return authentication.getName();
+  }
+
+  private String decorateObservation(String observation, String paymentType) {
+    if (paymentType == null || paymentType.isBlank()) {
+      return observation;
+    }
+    String prefix = "[" + paymentType.trim().toUpperCase() + "]";
+    if (observation == null || observation.isBlank()) {
+      return prefix;
+    }
+    return prefix + " " + observation.trim();
   }
 
   @Transactional

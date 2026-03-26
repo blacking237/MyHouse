@@ -1,6 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
 import { usePreferences, useThemeColors, type Language, type ThemeMode } from '../../../database/PreferencesContext';
 import { useDatabaseOptional } from '../../../database/DatabaseContext';
 import { useAuth, type AppRole, type RoleAccountSummary } from '../../../database/AuthContext';
@@ -8,6 +8,7 @@ import { FEATURE_SECTIONS, roleHasFeature, type FeatureKey } from '../../../cons
 import { useMyHouseConsoleData } from '../../../hooks/useMyHouseConsoleData';
 import {
   applyMaintenancePenalty,
+  addMarketplaceMedia,
   createPayment,
   createResident,
   listMarketplaceListings,
@@ -53,6 +54,7 @@ import ActionPanel from '../../../components/myhouse/ActionPanel';
 import DataTableCard from '../../../components/myhouse/DataTableCard';
 import KpiTile from '../../../components/myhouse/KpiTile';
 import SectionHeader from '../../../components/myhouse/SectionHeader';
+import InlineSelectField from '../../../components/forms/InlineSelectField';
 
 type ManagerPage =
   | 'dashboard'
@@ -124,6 +126,7 @@ type MaintenanceApiForm = {
 };
 type PaymentForm = {
   invoiceId: number | null;
+  paymentType: 'ELECTRICITE' | 'LOYER' | 'PENALITE';
   amount: string;
   method: string;
   note: string;
@@ -134,13 +137,12 @@ type NotificationForm = {
   subject: string;
   message: string;
 };
-type DocumentType = 'CONTRAT' | 'PIECE_LOCATIVE' | 'ETAT_DES_LIEUX' | 'PV' | 'AUTRE';
 type DocumentStatus = 'BROUILLON' | 'VALIDE' | 'A_SIGNER' | 'ARCHIVE';
 type DocumentEntry = {
   key: string;
   room: string;
   resident: string;
-  type: DocumentType;
+  type: string;
   title: string;
   status: DocumentStatus;
   issuedOn: string;
@@ -177,6 +179,10 @@ type MarketplaceForm = {
   latitude: string;
   longitude: string;
 };
+type MarketplacePhotoDraft = {
+  name: string;
+  dataUrl: string;
+};
 type CommonChargeForm = {
   code: string;
   label: string;
@@ -193,6 +199,15 @@ type CommonChargeAssignForm = {
 const CONTRACT_REGISTRY_KEY = 'manager_contract_registry';
 const MAINTENANCE_TICKETS_KEY = 'manager_maintenance_tickets';
 const DOCUMENT_REGISTRY_KEY = 'manager_documents_registry';
+const DOCUMENT_TYPES_KEY = 'manager_document_types';
+const DEFAULT_DOCUMENT_TYPES = ['CONTRAT', 'BAIL', 'FACTURE', 'RECU', 'PV_ETAT_LIEUX', 'PHOTO', 'AUTRE'];
+const MARKETPLACE_LISTING_TYPES = ['LOCATION', 'VENTE', 'COLOCATION', 'EMPLACEMENT_PARKING', 'BUREAU'];
+const MARKETPLACE_MAP_BOUNDS = {
+  minLat: 3.7,
+  maxLat: 4.35,
+  minLng: 9.55,
+  maxLng: 10.1,
+};
 
 const MANAGER_FEATURE_MAP: Record<FeatureKey, { page: ManagerPage; icon: React.ComponentProps<typeof Ionicons>['name']; labelKey: string }> = {
   dashboard: { page: 'dashboard', icon: 'grid-outline', labelKey: 'dashboardLabel' },
@@ -237,6 +252,7 @@ export default function ManagerDesktopScreen() {
   const [documentRegistry, setDocumentRegistry] = useState<DocumentEntry[]>([]);
   const [selectedDocumentKey, setSelectedDocumentKey] = useState<string | null>(null);
   const [documentForm, setDocumentForm] = useState<DocumentForm>(emptyDocumentForm());
+  const [documentTypes, setDocumentTypes] = useState<string[]>(DEFAULT_DOCUMENT_TYPES);
   const [documentNotice, setDocumentNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [exitReports, setExitReports] = useState<ApiExitReport[]>([]);
   const [selectedExitReportId, setSelectedExitReportId] = useState<number | null>(null);
@@ -247,6 +263,8 @@ export default function ManagerDesktopScreen() {
   const [ocrOnboardingNotice, setOcrOnboardingNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [marketplaceListings, setMarketplaceListings] = useState<ApiMarketplaceListing[]>([]);
   const [marketplaceForm, setMarketplaceForm] = useState<MarketplaceForm>(emptyMarketplaceForm());
+  const [marketplacePhotos, setMarketplacePhotos] = useState<MarketplacePhotoDraft[]>([]);
+  const [marketplaceMapSize, setMarketplaceMapSize] = useState({ width: 0, height: 0 });
   const [marketplaceNotice, setMarketplaceNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
   const [commonCharges, setCommonCharges] = useState<ApiCommonCharge[]>([]);
   const [commonChargeForm, setCommonChargeForm] = useState<CommonChargeForm>(emptyCommonChargeForm());
@@ -322,6 +340,19 @@ export default function ManagerDesktopScreen() {
       const entries = await getDocumentsRegistry(db);
       if (alive) {
         setDocumentRegistry(entries);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, [db]);
+
+  React.useEffect(() => {
+    let alive = true;
+    void (async () => {
+      const entries = await getDocumentTypes(db);
+      if (alive) {
+        setDocumentTypes(entries);
       }
     })();
     return () => {
@@ -469,6 +500,61 @@ export default function ManagerDesktopScreen() {
     [metrics.residents, metrics.rooms],
   );
 
+  const documentTypeOptions = useMemo(
+    () => documentTypes.map((entry) => ({ label: entry, value: entry })),
+    [documentTypes],
+  );
+
+  const pushRecipientOptions = useMemo(() => {
+    const residentOptions = metrics.residents
+      .filter((resident) => resident.statut !== 'INACTIF')
+      .map((resident) => ({
+        label: `${resident.nom} ${resident.prenom}`.trim() || resident.externalId || `Resident ${resident.id}`,
+        value: resident.externalId || String(resident.id),
+      }));
+    const conciergeOptions = roleAccounts
+      .filter((account) => account.role === 'concierge' && account.status === 'ACTIVE')
+      .map((account) => ({
+        label: `${account.displayName} (CONCIERGE)`,
+        value: account.username,
+      }));
+    return [...residentOptions, ...conciergeOptions].sort((left, right) => left.label.localeCompare(right.label));
+  }, [metrics.residents, roleAccounts]);
+
+  const notificationRecipientPlaceholder = notificationForm.channel === 'EMAIL'
+    ? 'user@gmail.com'
+    : notificationForm.channel === 'PUSH'
+      ? 'Selectionner un resident ou un concierge'
+      : '+2376xxxxxxx';
+
+  const notificationEmailValid = notificationForm.channel !== 'EMAIL'
+    || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(notificationForm.recipient.trim());
+
+  const notificationPushTitleRequired = notificationForm.channel !== 'PUSH' || notificationForm.subject.trim().length > 0;
+
+  const canSendNotification = Boolean(
+    notificationForm.channel.trim()
+    && notificationForm.recipient.trim()
+    && notificationForm.message.trim()
+    && notificationEmailValid
+    && notificationPushTitleRequired,
+  );
+
+  const canCreateMarketplaceListing = activeRole === 'manager' || activeRole === 'adminCommercial' || activeRole === 'superAdmin';
+  const paymentTypeOptions = useMemo(() => {
+    if (activeRole === 'concierge') {
+      return [{ label: 'Electricite', value: 'ELECTRICITE' }];
+    }
+    if (activeRole === 'tenant') {
+      return [];
+    }
+    return [
+      { label: 'Electricite', value: 'ELECTRICITE' },
+      { label: 'Loyer', value: 'LOYER' },
+      { label: 'Penalite', value: 'PENALITE' },
+    ];
+  }, [activeRole]);
+
   const invoiceRows = useMemo(
     () =>
       metrics.invoices.map((invoice) => {
@@ -516,6 +602,54 @@ export default function ManagerDesktopScreen() {
     setAccountRole('concierge');
     setAccountNotice({ type: 'success', message: t('accountCreated') });
   }, [accountPassword, accountRole, accountUsername, createRoleAccount, currentUsername, db, listRoleAccounts, loadPendingAccounts, t]);
+
+  const handleAddDocumentType = React.useCallback(async (value: string) => {
+    const normalized = value.trim().toUpperCase().replace(/\s+/g, '_');
+    if (!normalized) {
+      return;
+    }
+    setDocumentTypes((current) => {
+      if (current.includes(normalized)) {
+        return current;
+      }
+      const next = [...current, normalized];
+      void saveDocumentTypes(db, next);
+      return next;
+    });
+  }, [db]);
+
+  const handleMarketplacePhotosSelected = React.useCallback(async (event: any) => {
+    const files = Array.from(event?.target?.files ?? []) as Array<{ name?: string } & Blob>;
+    if (!files.length) {
+      return;
+    }
+    const nextPhotos = await Promise.all(files.map(async (file, index) => {
+      const dataUrl = await readFileAsDataUrl(file);
+      return {
+        name: file.name ?? `photo-${index + 1}.jpg`,
+        dataUrl,
+      };
+    }));
+    setMarketplacePhotos((current) => [...current, ...nextPhotos]);
+  }, []);
+
+  const handleMarketplaceMapPress = React.useCallback((event: any) => {
+    const width = marketplaceMapSize.width || 1;
+    const height = marketplaceMapSize.height || 1;
+    const x = Number(event?.nativeEvent?.locationX ?? 0);
+    const y = Number(event?.nativeEvent?.locationY ?? 0);
+    const normalizedX = Math.max(0, Math.min(x, width)) / width;
+    const normalizedY = Math.max(0, Math.min(y, height)) / height;
+    const lat = MARKETPLACE_MAP_BOUNDS.maxLat
+      - (normalizedY * (MARKETPLACE_MAP_BOUNDS.maxLat - MARKETPLACE_MAP_BOUNDS.minLat));
+    const lng = MARKETPLACE_MAP_BOUNDS.minLng
+      + normalizedX * (MARKETPLACE_MAP_BOUNDS.maxLng - MARKETPLACE_MAP_BOUNDS.minLng);
+    setMarketplaceForm((current) => ({
+      ...current,
+      latitude: lat.toFixed(6),
+      longitude: lng.toFixed(6),
+    }));
+  }, [marketplaceMapSize.height, marketplaceMapSize.width]);
 
   const contractRows = useMemo(
     () =>
@@ -866,6 +1000,10 @@ export default function ManagerDesktopScreen() {
   }, [maintenanceApiTickets, selectedMaintenanceApiId, t]);
 
   const handleRecordPayment = React.useCallback(async () => {
+    if (activeRole === 'tenant') {
+      setPaymentNotice({ type: 'error', message: 'Non autorise' });
+      return;
+    }
     if (!paymentForm.invoiceId || !paymentForm.amount.trim()) {
       setPaymentNotice({ type: 'error', message: t('fillAllFields') });
       return;
@@ -878,6 +1016,7 @@ export default function ManagerDesktopScreen() {
     try {
       await createPayment({
         invoiceId: paymentForm.invoiceId,
+        paymentType: paymentForm.paymentType,
         amount,
         method: paymentForm.method || 'MANUAL',
         observation: paymentForm.note.trim() || null,
@@ -892,7 +1031,7 @@ export default function ManagerDesktopScreen() {
       );
     } catch (error) {
       try {
-        await recordPayment(paymentForm.invoiceId, amount, paymentForm.note);
+        await recordPayment(paymentForm.invoiceId, amount, `[${paymentForm.paymentType}] ${paymentForm.note}`.trim());
         setPaymentNotice({ type: 'success', message: t('paymentRecorded') });
         setPaymentForm((current) => ({ ...current, amount: '', note: '' }));
         await pushBusinessNotification(
@@ -905,7 +1044,7 @@ export default function ManagerDesktopScreen() {
         setPaymentNotice({ type: 'error', message: t('cannotSaveData') });
       }
     }
-  }, [paymentForm, pushBusinessNotification, t]);
+  }, [activeRole, paymentForm, pushBusinessNotification, t]);
 
   React.useEffect(() => {
     let alive = true;
@@ -931,6 +1070,15 @@ export default function ManagerDesktopScreen() {
   }, [paymentForm.invoiceId]);
 
   const handleSendNotification = React.useCallback(async () => {
+    if (!canSendNotification) {
+      setNotificationNotice({
+        type: 'error',
+        message: notificationForm.channel === 'EMAIL' && !notificationEmailValid
+          ? 'Adresse email invalide.'
+          : t('fillAllFields'),
+      });
+      return;
+    }
     if (!notificationForm.channel.trim() || !notificationForm.recipient.trim() || !notificationForm.message.trim()) {
       setNotificationNotice({ type: 'error', message: t('fillAllFields') });
       return;
@@ -948,7 +1096,7 @@ export default function ManagerDesktopScreen() {
     } catch (error) {
       setNotificationNotice({ type: 'error', message: t('cannotSaveData') });
     }
-  }, [notificationForm, t]);
+  }, [canSendNotification, notificationEmailValid, notificationForm, t]);
 
   const handleApprovePending = React.useCallback(async (userId: number) => {
     try {
@@ -1019,6 +1167,10 @@ export default function ManagerDesktopScreen() {
   }, [exportMonth, handleDownloadBlob, metrics.month, metrics.monthConfig?.exportsValidatedByConcierge, t]);
 
   const handleSaveMarketplace = React.useCallback(async () => {
+    if (!canCreateMarketplaceListing) {
+      setMarketplaceNotice({ type: 'error', message: 'Non autorise' });
+      return;
+    }
     if (!marketplaceForm.title.trim() || !marketplaceForm.listingType.trim()) {
       setMarketplaceNotice({ type: 'error', message: t('fillAllFields') });
       return;
@@ -1035,13 +1187,23 @@ export default function ManagerDesktopScreen() {
         latitude: marketplaceForm.latitude.trim() ? Number(marketplaceForm.latitude) : null,
         longitude: marketplaceForm.longitude.trim() ? Number(marketplaceForm.longitude) : null,
       });
-      setMarketplaceListings((current) => [created, ...current]);
+      for (const [index, photo] of marketplacePhotos.entries()) {
+        await addMarketplaceMedia({
+          listingId: created.id,
+          mediaUrl: photo.dataUrl,
+          mediaType: 'PHOTO',
+          sortOrder: index,
+        });
+      }
+      const refreshed = await listMarketplaceListings();
+      setMarketplaceListings(refreshed);
       setMarketplaceForm(emptyMarketplaceForm());
+      setMarketplacePhotos([]);
       setMarketplaceNotice({ type: 'success', message: t('success') });
     } catch (error) {
       setMarketplaceNotice({ type: 'error', message: t('cannotSaveData') });
     }
-  }, [marketplaceForm, t]);
+  }, [addMarketplaceMedia, canCreateMarketplaceListing, marketplaceForm, marketplacePhotos, t]);
 
   const handleSaveCommonCharge = React.useCallback(async () => {
     if (!commonChargeForm.code.trim() || !commonChargeForm.label.trim()) {
@@ -2486,6 +2648,19 @@ export default function ManagerDesktopScreen() {
                 placeholder="MANUAL"
                 placeholderTextColor={colors.textLight}
               />
+              <Text style={styles.fieldLabel}>Type de paiement</Text>
+              {paymentTypeOptions.length ? (
+                <InlineSelectField
+                  value={paymentForm.paymentType}
+                  options={paymentTypeOptions}
+                  onChange={(value) => setPaymentForm((current) => ({ ...current, paymentType: value as PaymentForm['paymentType'] }))}
+                  placeholder="Selectionner un type"
+                />
+              ) : (
+                <View style={[styles.noticeBanner, styles.noticeError]}>
+                  <Text style={styles.noticeText}>Non autorise</Text>
+                </View>
+              )}
               <Text style={styles.fieldLabel}>{t('noteOptional')}</Text>
               <TextInput
                 value={paymentForm.note}
@@ -2495,7 +2670,7 @@ export default function ManagerDesktopScreen() {
                 placeholder={t('noteOptional')}
                 placeholderTextColor={colors.textLight}
               />
-              <TouchableOpacity style={styles.primaryButton} onPress={handleRecordPayment}>
+              <TouchableOpacity style={[styles.primaryButton, !paymentTypeOptions.length && styles.buttonDisabled]} onPress={handleRecordPayment} disabled={!paymentTypeOptions.length}>
                 <Text style={styles.primaryButtonText}>{t('registerPayment')}</Text>
               </TouchableOpacity>
             </View>
@@ -2545,19 +2720,31 @@ export default function ManagerDesktopScreen() {
                 })}
               </View>
               <Text style={styles.fieldLabel}>{t('notificationRecipientLabel')}</Text>
-              <TextInput
-                value={notificationForm.recipient}
-                onChangeText={(value) => setNotificationForm((current) => ({ ...current, recipient: value }))}
-                style={styles.fieldInput}
-                placeholder="+2376xxxxxxx"
-                placeholderTextColor={colors.textLight}
-              />
-              <Text style={styles.fieldLabel}>{t('notificationSubjectLabel')}</Text>
+              {notificationForm.channel === 'PUSH' ? (
+                <InlineSelectField
+                  value={notificationForm.recipient}
+                  options={pushRecipientOptions}
+                  onChange={(value) => setNotificationForm((current) => ({ ...current, recipient: value }))}
+                  placeholder="Selectionner un resident ou un concierge"
+                />
+              ) : (
+                <TextInput
+                  value={notificationForm.recipient}
+                  onChangeText={(value) => setNotificationForm((current) => ({ ...current, recipient: value }))}
+                  style={styles.fieldInput}
+                  placeholder={notificationRecipientPlaceholder}
+                  placeholderTextColor={colors.textLight}
+                />
+              )}
+              {notificationForm.channel === 'EMAIL' && !notificationEmailValid && notificationForm.recipient.trim() ? (
+                <Text style={styles.validationErrorText}>Adresse email invalide. Exemple valide : user@gmail.com</Text>
+              ) : null}
+              <Text style={styles.fieldLabel}>{notificationForm.channel === 'PUSH' ? 'Titre de la notification' : t('notificationSubjectLabel')}</Text>
               <TextInput
                 value={notificationForm.subject}
                 onChangeText={(value) => setNotificationForm((current) => ({ ...current, subject: value }))}
                 style={styles.fieldInput}
-                placeholder={t('notificationSubjectLabel')}
+                placeholder={notificationForm.channel === 'PUSH' ? 'Nouvelle alerte MyHouse' : t('notificationSubjectLabel')}
                 placeholderTextColor={colors.textLight}
               />
               <Text style={styles.fieldLabel}>{t('notificationMessageLabel')}</Text>
@@ -2569,8 +2756,18 @@ export default function ManagerDesktopScreen() {
                 placeholder={t('notificationMessageLabel')}
                 placeholderTextColor={colors.textLight}
               />
-              <TouchableOpacity style={styles.primaryButton} onPress={handleSendNotification}>
-                <Text style={styles.primaryButtonText}>{t('notificationSendAction')}</Text>
+              {notificationForm.channel === 'PUSH' ? (
+                <View style={styles.pushPreviewCard}>
+                  <Text style={styles.pushPreviewHeader}>Apercu Push</Text>
+                  <View style={styles.pushPreviewBubble}>
+                    <Text style={styles.pushPreviewApp}>MyHouse</Text>
+                    <Text style={styles.pushPreviewTitle}>{notificationForm.subject.trim() || 'Titre de la notification'}</Text>
+                    <Text style={styles.pushPreviewMessage}>{notificationForm.message.trim() || 'Message de notification'}</Text>
+                  </View>
+                </View>
+              ) : null}
+              <TouchableOpacity style={[styles.primaryButton, !canSendNotification && styles.buttonDisabled]} onPress={handleSendNotification} disabled={!canSendNotification}>
+                <Text style={styles.primaryButtonText}>{notificationForm.channel === 'PUSH' ? 'Envoyer la notification Push' : t('notificationSendAction')}</Text>
               </TouchableOpacity>
             </View>
             <DataTableCard
@@ -2783,12 +2980,13 @@ export default function ManagerDesktopScreen() {
                 <View style={styles.formSplit}>
                   <View style={styles.formSplitCol}>
                     <Text style={styles.fieldLabel}>{t('documentTypeLabel')}</Text>
-                    <TextInput
+                    <InlineSelectField
                       value={documentForm.type}
-                      onChangeText={(value) => setDocumentForm((current) => ({ ...current, type: value as DocumentType }))}
-                      style={styles.fieldInput}
+                      onChange={(value) => setDocumentForm((current) => ({ ...current, type: value }))}
+                      options={documentTypeOptions}
                       placeholder="CONTRAT"
-                      placeholderTextColor={colors.textLight}
+                      allowCustomOption
+                      onAddCustomOption={(value) => { void handleAddDocumentType(value); }}
                     />
                   </View>
                   <View style={styles.formSplitCol}>
@@ -3020,13 +3218,13 @@ export default function ManagerDesktopScreen() {
                 placeholder="Studio meuble"
                 placeholderTextColor={colors.textLight}
               />
-              <Text style={styles.fieldLabel}>{t('documentTypeLabel')}</Text>
-              <TextInput
+              <Text style={styles.fieldLabel}>Type d'annonce</Text>
+              <InlineSelectField
                 value={marketplaceForm.listingType}
-                onChangeText={(value) => setMarketplaceForm((current) => ({ ...current, listingType: value }))}
-                style={styles.fieldInput}
+                onChange={(value) => setMarketplaceForm((current) => ({ ...current, listingType: value }))}
+                options={MARKETPLACE_LISTING_TYPES.map((entry) => ({ label: entry, value: entry }))}
                 placeholder="LOCATION"
-                placeholderTextColor={colors.textLight}
+                disabled={!canCreateMarketplaceListing}
               />
               <Text style={styles.fieldLabel}>{t('amountLabel')}</Text>
               <TextInput
@@ -3046,12 +3244,39 @@ export default function ManagerDesktopScreen() {
                 placeholderTextColor={colors.textLight}
               />
               <Text style={styles.fieldLabel}>Lat / Lng (OpenStreetMap)</Text>
+              <View style={styles.mapPickerCard}>
+                <Text style={styles.mapPickerHint}>Cliquez sur la carte pour enregistrer automatiquement les coordonnees GPS.</Text>
+                <Pressable
+                  style={styles.mapPickerSurface}
+                  onLayout={(event) => setMarketplaceMapSize(event.nativeEvent.layout)}
+                  onPress={handleMarketplaceMapPress}
+                  disabled={!canCreateMarketplaceListing}
+                >
+                  {Platform.OS === 'web'
+                    ? React.createElement('iframe', {
+                        src: `https://www.openstreetmap.org/export/embed.html?bbox=${MARKETPLACE_MAP_BOUNDS.minLng}%2C${MARKETPLACE_MAP_BOUNDS.minLat}%2C${MARKETPLACE_MAP_BOUNDS.maxLng}%2C${MARKETPLACE_MAP_BOUNDS.maxLat}&layer=mapnik`,
+                        style: {
+                          border: 0,
+                          width: '100%',
+                          height: '100%',
+                          borderRadius: 14,
+                        },
+                        title: 'OpenStreetMap MyHouse',
+                      })
+                    : <View style={styles.mapPickerFallback}><Text style={styles.mapPickerHint}>Selection GPS disponible sur la version web.</Text></View>}
+                  {marketplaceForm.latitude && marketplaceForm.longitude ? (
+                    <View style={styles.mapMarkerBadge}>
+                      <Text style={styles.mapMarkerBadgeText}>Point selectionne</Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              </View>
               <View style={styles.formSplit}>
                 <View style={styles.formSplitCol}>
                   <TextInput
                     value={marketplaceForm.latitude}
-                    onChangeText={(value) => setMarketplaceForm((current) => ({ ...current, latitude: value }))}
-                    style={styles.fieldInput}
+                    editable={false}
+                    style={[styles.fieldInput, styles.fieldReadonly]}
                     placeholder="4.0511"
                     keyboardType="numeric"
                     placeholderTextColor={colors.textLight}
@@ -3060,14 +3285,43 @@ export default function ManagerDesktopScreen() {
                 <View style={styles.formSplitCol}>
                   <TextInput
                     value={marketplaceForm.longitude}
-                    onChangeText={(value) => setMarketplaceForm((current) => ({ ...current, longitude: value }))}
-                    style={styles.fieldInput}
+                    editable={false}
+                    style={[styles.fieldInput, styles.fieldReadonly]}
                     placeholder="9.7679"
                     keyboardType="numeric"
                     placeholderTextColor={colors.textLight}
                   />
                 </View>
               </View>
+              <Text style={styles.fieldLabel}>Photos</Text>
+              {Platform.OS === 'web'
+                ? React.createElement('input', {
+                    type: 'file',
+                    accept: 'image/*',
+                    multiple: true,
+                    onChange: (event: any) => {
+                      void handleMarketplacePhotosSelected(event);
+                    },
+                    disabled: !canCreateMarketplaceListing,
+                    style: {
+                      paddingTop: 12,
+                      paddingBottom: 12,
+                    },
+                  })
+                : (
+                  <View style={[styles.noticeBanner, styles.noticeError]}>
+                    <Text style={styles.noticeText}>Ajout multiple de photos disponible sur la version web.</Text>
+                  </View>
+                )}
+              {marketplacePhotos.length ? (
+                <View style={styles.photoChipRow}>
+                  {marketplacePhotos.map((photo) => (
+                    <View key={`${photo.name}-${photo.dataUrl.length}`} style={styles.photoChip}>
+                      <Text style={styles.photoChipText}>{photo.name}</Text>
+                    </View>
+                  ))}
+                </View>
+              ) : null}
               <Text style={styles.fieldLabel}>{t('notesLabel')}</Text>
               <TextInput
                 value={marketplaceForm.description}
@@ -3077,9 +3331,15 @@ export default function ManagerDesktopScreen() {
                 placeholder={t('notesLabel')}
                 placeholderTextColor={colors.textLight}
               />
-              <TouchableOpacity style={styles.primaryButton} onPress={handleSaveMarketplace}>
-                <Text style={styles.primaryButtonText}>{t('saveDocument')}</Text>
-              </TouchableOpacity>
+              {canCreateMarketplaceListing ? (
+                <TouchableOpacity style={styles.primaryButton} onPress={handleSaveMarketplace}>
+                  <Text style={styles.primaryButtonText}>{t('save')}</Text>
+                </TouchableOpacity>
+              ) : (
+                <View style={[styles.noticeBanner, styles.noticeError]}>
+                  <Text style={styles.noticeText}>Non autorise</Text>
+                </View>
+              )}
             </View>
           </View>
         ) : null}
@@ -3429,6 +3689,7 @@ function emptyMaintenanceApiForm(): MaintenanceApiForm {
 function emptyPaymentForm(): PaymentForm {
   return {
     invoiceId: null,
+    paymentType: 'ELECTRICITE',
     amount: '',
     method: '',
     note: '',
@@ -3532,6 +3793,52 @@ async function saveDocumentsRegistry(db: ReturnType<typeof useDatabaseOptional>,
     return;
   }
   await db.runAsync('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', [DOCUMENT_REGISTRY_KEY, payload]);
+}
+
+async function getDocumentTypes(db: ReturnType<typeof useDatabaseOptional>): Promise<string[]> {
+  if (!db) {
+    if (typeof window === 'undefined') return DEFAULT_DOCUMENT_TYPES;
+    try {
+      const raw = window.localStorage.getItem(`myhouse:${DOCUMENT_TYPES_KEY}`);
+      if (!raw) return DEFAULT_DOCUMENT_TYPES;
+      const parsed = JSON.parse(raw) as string[];
+      return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_DOCUMENT_TYPES;
+    } catch {
+      return DEFAULT_DOCUMENT_TYPES;
+    }
+  }
+  const row = await db.getFirstAsync<{ value: string }>('SELECT value FROM app_settings WHERE key = ?', [DOCUMENT_TYPES_KEY]);
+  if (!row?.value) return DEFAULT_DOCUMENT_TYPES;
+  try {
+    const parsed = JSON.parse(row.value) as string[];
+    return Array.isArray(parsed) && parsed.length ? parsed : DEFAULT_DOCUMENT_TYPES;
+  } catch {
+    return DEFAULT_DOCUMENT_TYPES;
+  }
+}
+
+async function saveDocumentTypes(db: ReturnType<typeof useDatabaseOptional>, entries: string[]): Promise<void> {
+  const payload = JSON.stringify(entries);
+  if (!db) {
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(`myhouse:${DOCUMENT_TYPES_KEY}`, payload);
+    }
+    return;
+  }
+  await db.runAsync('INSERT OR REPLACE INTO app_settings (key, value) VALUES (?, ?)', [DOCUMENT_TYPES_KEY, payload]);
+}
+
+async function readFileAsDataUrl(file: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    if (typeof FileReader === 'undefined') {
+      reject(new Error('FileReader unavailable'));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result ?? ''));
+    reader.onerror = () => reject(reader.error ?? new Error('Unable to read file'));
+    reader.readAsDataURL(file);
+  });
 }
 
 function SnapshotRow({
@@ -3834,8 +4141,112 @@ function createStyles(colors: ReturnType<typeof useThemeColors>) {
       fontSize: 14,
       fontWeight: '800',
     },
+    buttonDisabled: {
+      opacity: 0.55,
+    },
     secondaryButtonText: {
       color: colors.text,
+    },
+    validationErrorText: {
+      color: colors.error,
+      fontSize: 12,
+      fontWeight: '700',
+      marginTop: 6,
+    },
+    pushPreviewCard: {
+      marginTop: 8,
+      gap: 10,
+    },
+    pushPreviewHeader: {
+      color: colors.text,
+      fontSize: 13,
+      fontWeight: '800',
+    },
+    pushPreviewBubble: {
+      borderRadius: 18,
+      backgroundColor: colors.inputBg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      padding: 14,
+      gap: 4,
+      shadowColor: '#000',
+      shadowOpacity: 0.08,
+      shadowRadius: 10,
+      shadowOffset: { width: 0, height: 4 },
+    },
+    pushPreviewApp: {
+      color: colors.secondary,
+      fontSize: 11,
+      fontWeight: '800',
+      letterSpacing: 0.6,
+    },
+    pushPreviewTitle: {
+      color: colors.text,
+      fontSize: 14,
+      fontWeight: '800',
+    },
+    pushPreviewMessage: {
+      color: colors.textLight,
+      fontSize: 13,
+      lineHeight: 18,
+    },
+    mapPickerCard: {
+      gap: 8,
+      marginTop: 4,
+    },
+    mapPickerHint: {
+      color: colors.textLight,
+      fontSize: 12,
+      lineHeight: 18,
+    },
+    mapPickerSurface: {
+      height: 220,
+      borderRadius: 14,
+      overflow: 'hidden',
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.inputBg,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    mapPickerFallback: {
+      flex: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 18,
+    },
+    mapMarkerBadge: {
+      position: 'absolute',
+      right: 12,
+      top: 12,
+      backgroundColor: colors.primary,
+      borderRadius: 999,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    mapMarkerBadgeText: {
+      color: colors.white,
+      fontSize: 11,
+      fontWeight: '800',
+    },
+    photoChipRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+      marginTop: 8,
+    },
+    photoChip: {
+      borderRadius: 999,
+      backgroundColor: colors.inputBg,
+      borderWidth: 1,
+      borderColor: colors.border,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+    },
+    photoChipText: {
+      color: colors.text,
+      fontSize: 12,
+      fontWeight: '700',
     },
     noticeBanner: {
       borderRadius: 12,

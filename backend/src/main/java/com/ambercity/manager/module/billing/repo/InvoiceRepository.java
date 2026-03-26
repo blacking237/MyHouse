@@ -9,5 +9,6 @@ public interface InvoiceRepository extends JpaRepository<InvoiceEntity, Long> {
   Optional<InvoiceEntity> findByRoomIdAndMois(Long roomId, String mois);
   List<InvoiceEntity> findByRoomId(Long roomId);
   List<InvoiceEntity> findByMoisOrderByRoomNumeroChambreAsc(String mois);
+  List<InvoiceEntity> findByMoisAndResidentIdOrderByRoomNumeroChambreAsc(String mois, Long residentId);
   Optional<InvoiceEntity> findByExternalId(String externalId);
 }

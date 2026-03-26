@@ -3405,13 +3405,22 @@ export async function recordPayment(
 
 export async function createPayment(payload: {
   invoiceId: number;
+  paymentType?: 'ELECTRICITE' | 'LOYER' | 'PENALITE';
   amount: number;
   method: string;
   observation?: string | null;
   externalId?: string;
 }): Promise<ApiPayment> {
   return withOfflineFallback(
-    () => request<ApiPayment>('/api/v1/payments', {
+    () => request<ApiPayment>(
+      payload.paymentType === 'LOYER'
+        ? '/api/v1/payments/loyer'
+        : payload.paymentType === 'PENALITE'
+          ? '/api/v1/payments/penalite'
+          : payload.paymentType === 'ELECTRICITE'
+            ? '/api/v1/payments/electricite'
+            : '/api/v1/payments',
+      {
       method: 'POST',
       body: {
         invoiceId: payload.invoiceId,

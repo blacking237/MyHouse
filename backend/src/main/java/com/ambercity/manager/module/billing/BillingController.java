@@ -7,6 +7,7 @@ import com.ambercity.manager.module.billing.dto.UpdateInvoiceDebtRequest;
 import com.ambercity.manager.module.billing.dto.UpdateInvoiceSendStatusRequest;
 import jakarta.validation.Valid;
 import java.util.List;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
@@ -19,7 +20,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/api/v1/billing")
-@PreAuthorize("hasAnyRole('SUPER_ADMIN','MANAGER','CONCIERGE')")
 public class BillingController {
 
   private final BillingService billingService;
@@ -29,16 +29,19 @@ public class BillingController {
   }
 
   @PostMapping("/calculate")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','MANAGER','CONCIERGE')")
   public BillingCalculateResponse calculate(@Valid @RequestBody BillingCalculateRequest request) {
     return billingService.calculateAll(request.mois(), request.forceRecompute());
   }
 
   @GetMapping("/invoices")
-  public List<InvoiceResponse> listInvoices(@RequestParam String mois) {
-    return billingService.listInvoices(mois);
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','MANAGER','CONCIERGE','RESIDENT')")
+  public List<InvoiceResponse> listInvoices(@RequestParam String mois, Authentication authentication) {
+    return billingService.listInvoices(mois, authentication);
   }
 
   @PatchMapping("/invoices/{invoiceId}/debt")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','MANAGER','CONCIERGE')")
   public InvoiceResponse updateDebt(
     @PathVariable Long invoiceId,
     @RequestBody UpdateInvoiceDebtRequest request
@@ -47,6 +50,7 @@ public class BillingController {
   }
 
   @PatchMapping("/invoices/{invoiceId}/send-status")
+  @PreAuthorize("hasAnyRole('SUPER_ADMIN','MANAGER','CONCIERGE')")
   public InvoiceResponse updateSendStatus(
     @PathVariable Long invoiceId,
     @Valid @RequestBody UpdateInvoiceSendStatusRequest request
